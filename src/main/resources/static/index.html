@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking System Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1, h2 { text-align: center; }
+        .section { margin-bottom: 30px; border: 1px solid #ccc; padding: 20px; border-radius: 5px; }
+        label { display: block; margin-top: 10px; }
+        input, select, button { margin-top: 5px; padding: 8px; width: 100%; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Parking System</h1>
+
+        <div class="section">
+            <h2>Manage Vehicles</h2>
+            <form id="vehicleForm">
+                <label>License Plate</label>
+                <input type="text" id="licensePlate" required>
+                <label>Type</label>
+                <select id="vehicleType" required>
+                    <option value="CAR">CAR</option>
+                    <option value="MOTORCYCLE">MOTORCYCLE</option>
+                    <option value="TRUCK">TRUCK</option>
+                </select>
+                <button type="button" onclick="createVehicle()">Add Vehicle</button>
+            </form>
+            <h3>Vehicles List</h3>
+            <table id="vehiclesTable">
+                <thead><tr><th>ID</th><th>Plate</th><th>Type</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Manage Parking Spots</h2>
+            <form id="spotForm">
+                <label>Spot Number</label>
+                <input type="text" id="spotNumber" required>
+                <label>Type</label>
+                <select id="spotType" required>
+                    <option value="CAR">CAR</option>
+                    <option value="MOTORCYCLE">MOTORCYCLE</option>
+                    <option value="TRUCK">TRUCK</option>
+                </select>
+                <button type="button" onclick="createSpot()">Add Spot</button>
+            </form>
+            <h3>Free Parking Spots</h3>
+            <table id="spotsTable">
+                <thead><tr><th>ID</th><th>Number</th><th>Type</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Parking Sessions</h2>
+            <form id="sessionForm">
+                <label>Vehicle ID</label>
+                <input type="number" id="sessionVehicleId" required>
+                <label>Spot ID (for entry only)</label>
+                <input type="number" id="sessionSpotId">
+                <div style="display:flex; gap: 10px; margin-top: 10px;">
+                    <button type="button" onclick="enterParking()">Enter Parking</button>
+                    <button type="button" onclick="exitParking()" style="background-color: #dc3545;">Exit Parking</button>
+                </div>
+            </form>
+            <p id="sessionResult" style="margin-top:15px; font-weight: bold;"></p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api';
+
+        async function loadVehicles() {
+            const res = await fetch(`${API_URL}/vehicles`);
+            const data = await res.json();
+            const tbody = document.querySelector('#vehiclesTable tbody');
+            tbody.innerHTML = '';
+            data.forEach(v => {
+                tbody.innerHTML += `<tr><td>${v.id}</td><td>${v.licensePlate}</td><td>${v.type}</td></tr>`;
+            });
+        }
+
+        async function loadSpots() {
+            const res = await fetch(`${API_URL}/spots/free`);
+            const data = await res.json();
+            const tbody = document.querySelector('#spotsTable tbody');
+            tbody.innerHTML = '';
+            data.forEach(s => {
+                tbody.innerHTML += `<tr><td>${s.id}</td><td>${s.spotNumber}</td><td>${s.type}</td></tr>`;
+            });
+        }
+
+        async function createVehicle() {
+            const licensePlate = document.getElementById('licensePlate').value;
+            const type = document.getElementById('vehicleType').value;
+            const res = await fetch(`${API_URL}/vehicles`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ licensePlate, type })
+            });
+            if (res.ok) {
+                alert('Vehicle added');
+                loadVehicles();
+            } else {
+                alert('Error adding vehicle');
+            }
+        }
+
+        async function createSpot() {
+            const spotNumber = document.getElementById('spotNumber').value;
+            const type = document.getElementById('spotType').value;
+            const res = await fetch(`${API_URL}/spots`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spotNumber, type, isOccupied: false })
+            });
+            if (res.ok) {
+                alert('Spot added');
+                loadSpots();
+            } else {
+                alert('Error adding spot');
+            }
+        }
+
+        async function enterParking() {
+            const vehicleId = document.getElementById('sessionVehicleId').value;
+            const spotId = document.getElementById('sessionSpotId').value;
+            const res = await fetch(`${API_URL}/sessions/enter?vehicleId=${vehicleId}&spotId=${spotId}`, { method: 'POST' });
+            const resultDiv = document.getElementById('sessionResult');
+            if (res.ok) {
+                resultDiv.innerText = 'Vehicle entered successfully!';
+                loadSpots();
+            } else {
+                const data = await res.json();
+                resultDiv.innerText = 'Error: ' + (data.error || 'Unknown error');
+            }
+        }
+
+        async function exitParking() {
+            const vehicleId = document.getElementById('sessionVehicleId').value;
+            const res = await fetch(`${API_URL}/sessions/exit?vehicleId=${vehicleId}`, { method: 'POST' });
+            const resultDiv = document.getElementById('sessionResult');
+            if (res.ok) {
+                const data = await res.json();
+                resultDiv.innerText = `Vehicle exited successfully! Total cost: ${data.cost} сом`;
+                loadSpots();
+            } else {
+                const data = await res.json();
+                resultDiv.innerText = 'Error: ' + (data.error || 'Unknown error');
+            }
+        }
+
+        window.onload = () => {
+            loadVehicles();
+            loadSpots();
+        };
+    </script>
+</body>
+</html>
