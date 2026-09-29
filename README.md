@@ -12,9 +12,6 @@ A backend system for managing a parking lot, built with Java 17+, Spring Boot, S
 Create a new PostgreSQL database and user (or use existing ones). The default configuration expects:
 
 - **Database name:** `parking_db`
-- **Username:** `postgres`
-- **Password:** `postgres`
-- **Port:** `5432`
 
 You can change these settings in the `src/main/resources/application.properties` file:
 ```properties
